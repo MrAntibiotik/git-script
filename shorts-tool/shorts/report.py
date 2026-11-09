@@ -18,6 +18,21 @@ CSV_FIELDS = ["бій", "час", "секунда", "тип", "подія", "ш�
               "джерело", "впевненість", "деталі", "кліп"]
 
 
+def _json_default(o):
+    """numpy-числа та інші типи -> звичайні значення для JSON."""
+    try:
+        import numpy as np
+        if isinstance(o, np.generic):
+            return o.item()
+        if isinstance(o, np.ndarray):
+            return o.tolist()
+    except ImportError:
+        pass
+    if isinstance(o, Path):
+        return str(o)
+    return str(o)
+
+
 def event_row(e: Event, battle: int | None, clip: str = "") -> dict:
     return {
         "бій": battle or "",
@@ -66,5 +81,5 @@ def write_reports(out_dir: Path, base_name: str, video: Path, profile_id: str,
     if extra:
         data.update(extra)
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+        json.dump(data, f, ensure_ascii=False, indent=2, default=_json_default)
     return csv_path, json_path

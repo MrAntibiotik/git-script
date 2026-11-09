@@ -26,9 +26,20 @@
     "chunk_minutes": 10,
     "hwaccel": "cuda"
   },
+  "separation": {
+    "_опис": "Розділення міксу на голос і гру нейромережею Demucs (лише для recording.mode = mixed). enabled=false — працювати по міксу. device: cuda або cpu. shifts: 0 — швидко, 1–2 — трохи якісніше, але в 2–3 рази повільніше.",
+    "enabled": true,
+    "model": "htdemucs",
+    "device": "cuda",
+    "shifts": 0,
+    "overlap": 0.25
+  },
   "ocr": {
     "_опис": "Розпізнавання тексту. change_*: OCR запускається, лише коли зона змінилась (економія часу); refresh_s: примусово перечитувати раз на N секунд.",
-    "languages": ["uk", "en"],
+    "languages": [
+      "uk",
+      "en"
+    ],
     "gpu": true,
     "digit_upscale": 2.0,
     "text_upscale": 1.5,

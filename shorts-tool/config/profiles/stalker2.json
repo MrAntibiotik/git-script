@@ -3,7 +3,12 @@
   "_зони": "Обведіть рамку вебкамери через pick_zones.bat.",
   "zones_confirmed": false,
   "zones": {
-    "webcam": [0.0, 0.37, 0.13, 0.26]
+    "webcam": [
+      0.0,
+      0.37,
+      0.13,
+      0.26
+    ]
   },
   "signals": {
     "vision": false,
@@ -13,11 +18,79 @@
   "battles": {
     "split_gap_s": 120
   },
+  "game_audio": {
+    "_опис": "Зразки звуків лежать у samples/<гра>/<категорія>/*.wav. Тут — що означає кожна категорія (type: hit = влучання, kill = знищення ворога, damage_taken = отримав шкоду, game_sound = просто цікавий звук) і її вага. threshold — поріг схожості 0..1 (вищий = суворіше). Якщо звук не розділено, поріг множиться на mix_threshold_factor.",
+    "categories": {
+      "вбивство": {
+        "type": "kill",
+        "weight": 1.5
+      },
+      "вибух": {
+        "type": "game_sound",
+        "weight": 0.6
+      }
+    },
+    "stems": [
+      "game",
+      "voice",
+      "mix"
+    ],
+    "threshold": 0.6,
+    "mix_threshold_factor": 0.85,
+    "min_gap_s": 0.6,
+    "level_tolerance_db": 20,
+    "loudness_spikes": {
+      "_опис": "Гучні звуки гри (постріли, вибухи) відносно звичайного рівня — коли немає зорових сигналів.",
+      "enabled": true,
+      "spike_db": 12,
+      "min_duration_s": 0.1,
+      "weight": 0.4
+    }
+  },
+  "voice": {
+    "_опис": "Ваш голос. spike_db — на скільки дБ гучніше за ваш звичайний рівень = сплеск (по міксу — mix_spike_db). Крик: + scream_min_db і тон від scream_min_hz Гц. Сміх: ритмічні поштовхи.",
+    "spike_db": 10,
+    "mix_spike_db": 14,
+    "scream_min_db": 12,
+    "scream_min_hz": 300,
+    "laugh": {
+      "enabled": true
+    }
+  },
+  "scoring": {
+    "_опис": "Сила моменту. base — базові бали за тип; влучання + шкода/hit_damage_scale; підтвердження звуком у ±sound_confirm_window_s с множить на sound_confirm_mult; ваша реакція протягом emotion_window_s с після події додає emotion_bonus × інтенсивність. audio_only_moments / voice_only_moments — чи бути моментами звукам і реакціям без події на екрані (для ігор без зорових сигналів).",
+    "audio_only_moments": true,
+    "voice_only_moments": true,
+    "min_score_audio_only": 0.8,
+    "emotion_bonus": 1.0
+  },
   "layout": {
     "preset": "overlay",
-    "output": {"width": 1080, "height": 1920, "fps": 60},
-    "split": {"webcam_height": 550, "game_zoom": 1.0, "game_offset_x": 0, "game_offset_y": 0},
-    "overlay": {"webcam_x": 220, "webcam_y": 40, "webcam_width": 640, "webcam_height": 410, "game_zoom": 1.0, "game_offset_x": 0, "game_offset_y": 0},
-    "counters": {"enabled": false, "x": 0, "y": 1250, "width": 225}
+    "output": {
+      "width": 1080,
+      "height": 1920,
+      "fps": 60
+    },
+    "split": {
+      "webcam_height": 550,
+      "game_zoom": 1.0,
+      "game_offset_x": 0,
+      "game_offset_y": 0
+    },
+    "overlay": {
+      "webcam_x": 220,
+      "webcam_y": 40,
+      "webcam_width": 640,
+      "webcam_height": 410,
+      "game_zoom": 1.0,
+      "game_offset_x": 0,
+      "game_offset_y": 0
+    },
+    "counters": {
+      "enabled": false,
+      "x": 0,
+      "y": 1250,
+      "width": 225
+    }
   }
 }

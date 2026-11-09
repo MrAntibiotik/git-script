@@ -110,7 +110,9 @@ def main():
         say(FAIL, "PyTorch не встановлено", "Запустіть install.bat (README, крок 3).")
 
     # Бібліотеки
-    for mod, title in (("cv2", "OpenCV"), ("numpy", "NumPy"), ("PIL", "Pillow"), ("easyocr", "EasyOCR")):
+    for mod, title in (("cv2", "OpenCV"), ("numpy", "NumPy"), ("PIL", "Pillow"), ("easyocr", "EasyOCR"),
+                       ("demucs", "Demucs (розділення звуку)"), ("librosa", "librosa (аналіз звуку)"),
+                       ("soundfile", "soundfile"), ("scipy", "SciPy")):
         try:
             m = __import__(mod)
             say(OK, f"{title} {getattr(m, '__version__', '')}")
@@ -141,6 +143,27 @@ def main():
                 say(WARN, f"EasyOCR запустився, але тест прочитав «{text}» замість «1620»")
         except UserError as e:
             say(FAIL, e.message, e.hint or "")
+
+    # Модель розділення звуку (завантаження один раз)
+    if "--no-sep" not in sys.argv and settings["separation"]["enabled"] \
+            and settings["recording"]["mode"] == "mixed":
+        try:
+            import numpy as np
+            from shorts.audio import Separator
+            print("\n… Завантажую/перевіряю модель розділення звуку (перший раз ~80 МБ)…")
+            import time as _t
+            sep = Separator(settings)
+            noise = (np.random.default_rng(0).normal(0, 0.05, (44100 * 10, 2))).astype(np.float32)
+            t0 = _t.time()
+            v, g = sep.separate(noise)
+            dt = _t.time() - t0
+            say(OK, f"Розділення звуку працює ({sep.device.upper()}): 10 с звуку за {dt:.1f} с "
+                    f"(≈ ×{10 / max(dt, 1e-3):.0f} від реального часу)")
+        except UserError as e:
+            say(FAIL, e.message, e.hint or "")
+        except Exception as e:
+            say(FAIL, f"Розділення звуку не запустилось: {e}",
+                "Надішліть цей текст розробнику. Тимчасово можна вимкнути: settings.json → separation.enabled = false.")
 
     # Профілі
     print()
