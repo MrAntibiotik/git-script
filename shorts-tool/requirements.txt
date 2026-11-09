@@ -1,0 +1,5 @@
+# PyTorch з CUDA ставиться окремо в install.bat (з сервера PyTorch), тут — решта.
+easyocr>=1.7.1
+opencv-python-headless>=4.8
+numpy>=1.24
+pillow>=10.0

@@ -1,0 +1,9 @@
+venv/
+work/
+output/
+models/
+ffmpeg/
+whisper/
+__pycache__/
+*.pyc
+config/profiles/*.bak

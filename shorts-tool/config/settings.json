@@ -1,0 +1,40 @@
+{
+  "_опис": "Загальні налаштування. Ключі, що починаються з _, — коментарі. Після зміни просто запустіть інструмент знову.",
+  "paths": {
+    "_опис": "auto = шукати ffmpeg у папці ffmpeg поруч, у C:/ffmpeg/bin або в PATH. Відносні шляхи — від папки інструмента.",
+    "ffmpeg": "auto",
+    "ffprobe": "auto",
+    "work_dir": "work",
+    "output_dir": "output",
+    "models_dir": "models"
+  },
+  "recording": {
+    "_опис": "mode: mixed = одна доріжка (гра+мікрофон разом), вебкамера в кадрі; separate = окремі доріжки гри й мікрофона та окремий файл вебкамери (OBS Source Record). Номери доріжок рахуються з 0.",
+    "mode": "mixed",
+    "mixed": {
+      "audio_track": 0
+    },
+    "separate": {
+      "game_audio_track": 0,
+      "mic_audio_track": 1,
+      "webcam_file_suffix": "_webcam",
+      "webcam_search_dirs": []
+    }
+  },
+  "processing": {
+    "_опис": "chunk_minutes: обробка частинами (пам'ять не росте на довгих записах). hwaccel: cuda = декодування відео на відеокарті; порожньо = на процесорі.",
+    "chunk_minutes": 10,
+    "hwaccel": "cuda"
+  },
+  "ocr": {
+    "_опис": "Розпізнавання тексту. change_*: OCR запускається, лише коли зона змінилась (економія часу); refresh_s: примусово перечитувати раз на N секунд.",
+    "languages": ["uk", "en"],
+    "gpu": true,
+    "digit_upscale": 2.0,
+    "text_upscale": 1.5,
+    "min_confidence": 0.25,
+    "change_pixel_delta": 40,
+    "change_fraction": 0.008,
+    "refresh_s": 1.0
+  }
+}

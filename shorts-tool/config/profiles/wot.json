@@ -1,0 +1,75 @@
+{
+  "name": "World of Tanks",
+  "_зони": "Прямокутники [x, y, ширина, висота] у частках кадру (0..1). НЕ правте вручну — обводьте мишкою через pick_zones.bat. Значення нижче — приблизні, їх обов'язково треба перевірити на вашому записі.",
+  "zones_confirmed": false,
+  "zones": {
+    "webcam": [0.0, 0.37, 0.13, 0.26],
+    "counters_block": [0.0, 0.715, 0.12, 0.04],
+    "damage_counter": [0.012, 0.715, 0.045, 0.04],
+    "event_log": [0.0, 0.53, 0.2, 0.18],
+    "hp_text": [0.02, 0.945, 0.09, 0.03],
+    "hp_bar": [0.0, 0.935, 0.17, 0.012],
+    "end_screen": [0.3, 0.3, 0.4, 0.35]
+  },
+  "signals": {
+    "_опис": "Які джерела сигналів використовувати: екран (OCR), звук гри (зразки), мій голос.",
+    "vision": true,
+    "game_audio": true,
+    "voice": true
+  },
+  "vision": {
+    "sample_fps": 2,
+    "time_correction_s": -0.25,
+    "damage_counter": {
+      "_опис": "max_jump — найбільший правдоподібний приріст за один постріл; більший стрибок вважається помилкою розпізнавання. confirm_frames — скільки кадрів поспіль має бути нове значення.",
+      "enabled": true,
+      "max_jump": 3000,
+      "max_value": 30000,
+      "confirm_frames": 2,
+      "reset_confirm_frames": 4,
+      "resync_frames": 6
+    },
+    "event_log": {
+      "_опис": "Зелені рядки — моя шкода (рядок зі словом зі списку kill_keywords = знищення ворога), червоні — отримана шкода.",
+      "enabled": true,
+      "kill_keywords": ["знищив", "знищено"],
+      "keyword_ratio": 0.75,
+      "memory_s": 20,
+      "match_ratio": 0.75,
+      "min_chars": 3
+    },
+    "hp": {
+      "_опис": "Міцність: текст «1234 / 2000» (основне) і смужка (запасне). min_drop — мінімальне падіння міцності, яке вважається влучанням.",
+      "enabled": true,
+      "use_text": true,
+      "use_bar": true,
+      "min_drop": 30,
+      "bar_min_drop": 0.04,
+      "confirm_frames": 2
+    },
+    "end_screen": {
+      "_опис": "Написи екрану смерті / кінця бою. Перевіряється раз на check_every_s секунд.",
+      "enabled": true,
+      "check_every_s": 2.0,
+      "scale": 0.6,
+      "death_keywords": ["оцініть бій", "перемкнути камеру"],
+      "battle_end_keywords": ["перемога", "поразка", "нічия"],
+      "keyword_ratio": 0.8,
+      "cooldown_s": 60
+    }
+  },
+  "battles": {
+    "_опис": "split_gap_s — пауза між подіями після смерті, яка означає новий бій.",
+    "split_gap_s": 45,
+    "merge_death_s": 20,
+    "log_match_s": 2.0
+  },
+  "layout": {
+    "_опис": "Макет шортсу (використовується з етапу 3). preset: split або overlay.",
+    "preset": "split",
+    "output": {"width": 1080, "height": 1920, "fps": 60},
+    "split": {"webcam_height": 550, "game_zoom": 1.0, "game_offset_x": 0, "game_offset_y": 0},
+    "overlay": {"webcam_x": 220, "webcam_y": 40, "webcam_width": 640, "webcam_height": 410, "game_zoom": 1.0, "game_offset_x": 0, "game_offset_y": 0},
+    "counters": {"enabled": true, "x": 0, "y": 1250, "width": 225}
+  }
+}
