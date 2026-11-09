@@ -86,6 +86,22 @@ def main():
             name = torch.cuda.get_device_name(0)
             mem = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
             say(OK, f"PyTorch {torch.__version__}, CUDA працює: {name} ({mem:.0f} ГБ)")
+            # RTX 50xx (Blackwell, sm_120) потребує PyTorch, зібраного з CUDA 12.8+.
+            # Стара збірка каже «CUDA доступна», але падає на першому ж обчисленні.
+            major, minor = torch.cuda.get_device_capability(0)
+            arch = f"sm_{major}{minor}"
+            archs = torch.cuda.get_arch_list()
+            try:
+                x = torch.ones(256, device="cuda")
+                float((x * 2).sum().item())
+                if archs and arch not in archs and not any(a.startswith("compute_") for a in archs):
+                    say(WARN, f"PyTorch не має готових ядер для {arch} ({name}), але тест пройшов")
+                else:
+                    say(OK, f"Обчислення на відеокарті працюють ({arch}, CUDA {torch.version.cuda})")
+            except Exception as e:
+                say(FAIL, f"PyTorch не підтримує вашу відеокарту {name} ({arch}): {str(e)[:120]}",
+                    "Для RTX 50xx потрібен PyTorch з CUDA 12.8: видаліть папку venv і запустіть install.bat "
+                    "знову (він ставить саме таку версію). Драйвер NVIDIA — 570 або новіший.")
         else:
             say(FAIL, f"PyTorch {torch.__version__} встановлено, але CUDA недоступна",
                 "1) Оновіть драйвер NVIDIA. 2) Запустіть install.bat ще раз — він поставить PyTorch з CUDA. "
