@@ -91,6 +91,7 @@ DEFAULT_SETTINGS: dict = {
         "crop_units": "fitted",
         "tilt_up_positive": True,
         "add_short_markers": True,
+        "link_clips": True,
         "marker_colors": {
             "hit": "Green", "damage_taken": "Red", "kill": "Yellow", "death": "Fuchsia",
             "voice": "Cyan", "game_sound": "Blue", "battle_start": "Cream", "battle_end": "Cream",

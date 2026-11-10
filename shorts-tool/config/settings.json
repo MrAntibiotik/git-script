@@ -125,6 +125,7 @@
       "game_sound": "Blue",
       "battle_start": "Cream",
       "battle_end": "Cream"
-    }
+    },
+    "link_clips": true
   }
 }

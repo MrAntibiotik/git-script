@@ -232,6 +232,14 @@ local function set_props(ti, props, what)
   if #failed > 0 then warn(what .. ": не вдалося задати " .. table.concat(failed, ", ")) end
 end
 
+-- Зв'язати кліпи шматка (як ПКМ → Link Clips): край, переміщення й видалення — для всіх разом.
+local function link_clips(tl, items)
+  local ok, res = pcall(function() return tl:SetClipsLinked(items, true) end)
+  if ok and res ~= false then return true end
+  log("  SetClipsLinked не спрацював: " .. tostring(res))
+  return false
+end
+
 local function add_marker(tl, frame, color, name, note, used)
   used = used or {}
   while used[frame] do frame = frame + 1 end
@@ -374,7 +382,9 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg)
   local cam_fps = cam_item and (tonumber(cam_item:GetClipProperty("FPS")) or rec.webcam.fps) or src_fps
   local start = tl:GetStartFrame()
   local pos = start
+  local linked_ok, linked_total = 0, 0
   for si, seg in ipairs(sh.segments) do
+    local group = {}   -- кліпи цього шматка (V1–V3 + A1) — зв'яжемо в одну групу
     local sf = frames(seg.s, src_fps)
     local ef = frames(seg.e, src_fps) - 1
     -- довжина на таймлайні = рівно стільки кадрів, скільки взяли з джерела (без накладань і дірок)
@@ -390,6 +400,7 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg)
       local ti = append_one(mp, { mediaPoolItem = src_item, startFrame = a, endFrame = b,
                                   trackIndex = layer.track, recordFrame = pos, mediaType = 1 })
       if ti then
+        table.insert(group, ti)
         if si == 1 then
           set_props(ti, layer_props(layer, W, H, mode, job.resolve or {}), "V" .. layer.track .. " " .. layer.name)
         else
@@ -405,9 +416,22 @@ local function build_short(project, mp, item, cam_item, rec, sh, job, tl_cfg)
     local ai = append_one(mp, { mediaPoolItem = item, startFrame = sf, endFrame = ef, trackIndex = 1,
                                 recordFrame = pos, mediaType = 2 })
     if not ai then warn("Не вдалося покласти звук шматка " .. si) end
+    if ai then table.insert(group, ai) end
+    if #group > 1 and not (job.resolve and job.resolve.link_clips == false) then
+      linked_total = linked_total + 1
+      if link_clips(tl, group) then linked_ok = linked_ok + 1 end
+    end
     pos = pos + len_tl
   end
 
+  if linked_total > 0 then
+    if linked_ok == linked_total then
+      log("  Зв'язано шматків: " .. linked_ok .. " (V1–V3 + A1 тягнуться разом)")
+    else
+      warn("Зв'язано лише " .. linked_ok .. " з " .. linked_total .. " шматків у «" .. sh.name ..
+           "» — решту можна зв'язати вручну: виділити кліпи шматка → ПКМ → Link Clips.")
+    end
+  end
   if job.resolve and job.resolve.add_short_markers then
     local used = {}
     for _, m in ipairs(sh.markers or {}) do
