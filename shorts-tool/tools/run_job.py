@@ -277,6 +277,8 @@ def gui(settings, log_file: Path):
             messagebox.showerror("Файл не знайдено", "\n".join(missing))
             return
         prof = profiles[combo.current()] if combo.current() >= 0 else "wot"
+        if not ensure_zones(prof, recs[0]):
+            return
         try:
             a = parse_time(e_from.get())
             b = parse_time(e_to.get())
@@ -296,6 +298,33 @@ def gui(settings, log_file: Path):
         append(f"Лог-файл: {log_file}")
         t_start[0] = time.time()
         threading.Thread(target=run_job_thread, args=(settings, opts, q, cancel), daemon=True).start()
+
+    def ensure_zones(prof: str, first_rec: str) -> bool:
+        """Перший запуск для гри: якщо рамки ще не обведені — пропонуємо зробити це зараз."""
+        try:
+            raw = strip_comments(load_profile_raw(prof))
+        except UserError as e:
+            messagebox.showerror("Профіль", str(e))
+            return False
+        if raw.get("zones_confirmed"):
+            return True
+        if not messagebox.askyesno(
+                "Рамки ще не обведені",
+                f"Для «{names.get(prof, prof)}» ще не обведені рамки (вебкамера"
+                f"{', лічильники, лог, міцність' if (raw.get('signals') or {}).get('vision') else ''}).\n\n"
+                "Відкрити вибір рамок на кадрі з цього запису зараз? (1–2 хвилини, один раз для гри)"):
+            return messagebox.askyesno("Продовжити?", "Продовжити з приблизними рамками за замовчуванням?")
+        import subprocess
+        root.withdraw()
+        try:
+            subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "pick_zones.py"), first_rec,
+                            "--profile", prof, "--time", "60"])
+        finally:
+            root.deiconify()
+        raw = strip_comments(load_profile_raw(prof))
+        if raw.get("zones_confirmed"):
+            return True
+        return messagebox.askyesno("Рамки не збережено", "Рамки не збережено. Продовжити з приблизними рамками?")
 
     def stop():
         if messagebox.askyesno("Зупинити", "Зупинити обробку? Уже оброблені частини збережуться, "

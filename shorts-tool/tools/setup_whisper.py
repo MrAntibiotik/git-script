@@ -120,7 +120,11 @@ def install_model(settings: dict) -> Path:
     print("\n[2/3] Модель розпізнавання мови:")
     for k, (n, d) in MODELS.items():
         print(f"  {k}. {n} — {d}")
-    ans = input("Номер [Enter = 1]: ").strip() or "1"
+    if "--auto" in sys.argv:          # автоматичне встановлення (SETUP.bat) — рекомендована модель
+        ans = "1"
+        print("  Обрано 1 (рекомендовано).")
+    else:
+        ans = input("Номер [Enter = 1]: ").strip() or "1"
     name = MODELS.get(ans, MODELS["1"])[0]
     dst = ROOT / "models" / "whisper" / name
     if dst.exists() and dst.stat().st_size > 100e6:

@@ -94,8 +94,7 @@ def get_frame(settings: dict, src: Path, t: float | None) -> Image.Image:
     if t is None:
         t = min(60.0, info.duration / 2)
     if t >= info.duration:
-        raise UserError(f"Секунда {t:.0f} більша за тривалість запису ({info.duration:.0f} с).",
-                        "Вкажіть менше значення.")
+        t = info.duration / 2   # запис коротший — беремо середину
     png = extract_frame(settings, src, t, work_dir(settings) / "zone_frame.png")
     return Image.open(png).convert("RGB")
 
