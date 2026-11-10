@@ -27,10 +27,11 @@ def setup_logging(name: str, log_dir: Path, verbose: bool = False) -> Path:
     fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
     root.addHandler(fh)
 
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG if verbose else logging.INFO)
-    ch.setFormatter(logging.Formatter("%(message)s"))
-    root.addHandler(ch)
+    if sys.stdout is not None:   # pythonw (вікно без консолі) не має stdout
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(logging.DEBUG if verbose else logging.INFO)
+        ch.setFormatter(logging.Formatter("%(message)s"))
+        root.addHandler(ch)
 
     # Сторонні бібліотеки — тихіше.
     for noisy in ("easyocr", "PIL", "matplotlib", "numba", "urllib3"):

@@ -47,5 +47,84 @@
     "change_pixel_delta": 40,
     "change_fraction": 0.008,
     "refresh_s": 1.0
+  },
+  "render": {
+    "_опис": "Рендер готових MP4. encoder: h264_nvenc (відеокарта); якщо не працює — автоматично fallback_encoder (процесор). cq: якість (менше = краще, 17–23).",
+    "enabled": true,
+    "encoder": "h264_nvenc",
+    "nvenc_preset": "p5",
+    "cq": 19,
+    "max_bitrate": "20M",
+    "audio_bitrate": "192k",
+    "fallback_encoder": "libx264",
+    "x264_crf": 18
+  },
+  "whisper": {
+    "_опис": "Субтитри whisper.cpp. Програму і модель ставить setup_whisper.bat. gpu=false — рахувати на процесорі (повільніше). prompt — підказка зі словами, які часто звучать (назви танків, сленг). hallucinations — фрази, які whisper іноді «вигадує» в тиші; такі субтитри видаляються.",
+    "enabled": true,
+    "cli": "auto",
+    "model": "models/whisper/ggml-large-v3-turbo.bin",
+    "language": "uk",
+    "gpu": true,
+    "threads": 6,
+    "beam_size": 5,
+    "prompt": "Стрім українською. World of Tanks, PUBG, Сталкер. Пробиття, ваншот, рикошет, засвітив, арта.",
+    "hallucinations": [
+      "дякую за перегляд",
+      "субтитри",
+      "підписуйтесь на канал",
+      "продовження слідує",
+      "дякуємо за увагу",
+      "редактор субтитрів",
+      "субтитрувальниця"
+    ]
+  },
+  "subtitles": {
+    "_опис": "Стиль субтитрів у готових MP4: великий білий шрифт з чорним контуром і тінню. Позиція по висоті — у профілі гри (layout.subtitles_y). emotion_emoji — емодзі до фрази, якщо в цей момент ви кричали/сміялися; keyword_emoji — емодзі за словом (частина слова → емодзі). Щоб вимкнути — зробіть {}.",
+    "font": "C:/Windows/Fonts/arialbd.ttf",
+    "emoji_font": "C:/Windows/Fonts/seguiemj.ttf",
+    "font_size": 66,
+    "color": "#FFFFFF",
+    "outline_color": "#000000",
+    "outline_width": 6,
+    "shadow_offset": 5,
+    "shadow_alpha": 170,
+    "max_chars_per_line": 24,
+    "max_lines": 2,
+    "max_cue_s": 2.8,
+    "min_cue_s": 0.6,
+    "pause_split_s": 0.45,
+    "emotion_emoji": {
+      "крик": "😱",
+      "сміх": "😂"
+    },
+    "keyword_emoji": {
+      "знищ": "💥",
+      "пробит": "🎯",
+      "ваншот": "🔥"
+    }
+  },
+  "cta": {
+    "_опис": "Заклик у кінці шортсу (текст вводиться у вікні запуску). duration_s — тривалість; y — висота центру тексту в кадрі 1080×1920.",
+    "duration_s": 3.0,
+    "font_size": 70,
+    "y": 1680
+  },
+  "resolve": {
+    "_опис": "Збірка в DaVinci. mismatch_mode: auto — визначити з налаштувань таймлайну, або fit / fill / none. crop_units і tilt_up_positive — службові, змінюйте лише якщо рамки в DaVinci стали не туди (див. README).",
+    "mismatch_mode": "auto",
+    "crop_units": "fitted",
+    "tilt_up_positive": true,
+    "add_short_markers": true,
+    "marker_colors": {
+      "hit": "Green",
+      "damage_taken": "Red",
+      "kill": "Yellow",
+      "death": "Fuchsia",
+      "voice": "Cyan",
+      "game_sound": "Blue",
+      "battle_start": "Cream",
+      "battle_end": "Cream"
+    }
   }
 }

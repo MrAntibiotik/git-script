@@ -20,6 +20,8 @@ VISION_MOMENTS = {E.HIT, E.KILL, E.DEATH, E.DAMAGE_TAKEN}
 def _base(e: Event, sc: dict) -> float:
     b = float(sc["base"].get(e.type, 0.5))
     if e.type == E.HIT and e.value:
+        if float(e.value) < float(sc.get("small_hit_damage", 0)):
+            return float(sc.get("small_hit_base", 0.3))   # дрібна шкода (пожежа, таран) — не момент
         b += min(sc["hit_damage_cap"], float(e.value) / sc["hit_damage_scale"])
     elif e.type == E.DAMAGE_TAKEN and e.value:
         b += min(1.5, float(e.value) / sc["taken_damage_scale"])

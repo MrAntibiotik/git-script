@@ -165,6 +165,27 @@ def main():
             say(FAIL, f"Розділення звуку не запустилось: {e}",
                 "Надішліть цей текст розробнику. Тимчасово можна вимкнути: settings.json → separation.enabled = false.")
 
+    # whisper.cpp (субтитри)
+    try:
+        from shorts.subtitles import find_whisper, whisper_model
+        exe = find_whisper(settings)
+        model = whisper_model(settings)
+        say(OK, f"whisper.cpp: {exe.name}, модель {model.name} ({model.stat().st_size / 1e9:.1f} ГБ), "
+                f"{'відеокарта' if settings['whisper']['gpu'] else 'процесор'}")
+    except UserError as e:
+        say(WARN, e.message + " — без цього не буде субтитрів", e.hint or "")
+
+    # Кнопка в DaVinci
+    import os as _os
+    appdata = _os.environ.get("APPDATA")
+    if appdata:
+        btn = (Path(appdata) / "Blackmagic Design" / "DaVinci Resolve" / "Support" / "Fusion" / "Scripts"
+               / "Utility" / "Shorts Autocut.lua")
+        if btn.exists():
+            say(OK, "Кнопка в DaVinci встановлена (Workspace → Scripts → Shorts Autocut)")
+        else:
+            say(WARN, "Кнопку в DaVinci ще не встановлено", "Запустіть install_resolve.bat і перезапустіть DaVinci.")
+
     # Профілі
     print()
     for name in list_profiles():
