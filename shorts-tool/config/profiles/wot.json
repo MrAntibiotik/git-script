@@ -1,5 +1,5 @@
 {
-  "profile_version": 4,
+  "profile_version": 5,
   "name": "World of Tanks",
   "_зони": "Прямокутники [x, y, ширина, висота] у частках кадру (0..1). НЕ правте вручну — обводьте мишкою через pick_zones.bat. Значення нижче — приблизні, їх обов'язково треба перевірити на вашому записі.",
   "zones_confirmed": false,
@@ -233,7 +233,7 @@
       "webcam_y": 40,
       "webcam_width": 640,
       "webcam_height": 410,
-      "webcam_fit": "contain",
+      "webcam_fit": "cover",
       "game_below_webcam": false,
       "game_zoom": 1.0,
       "game_offset_x": 0.0,
