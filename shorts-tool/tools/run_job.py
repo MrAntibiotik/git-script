@@ -247,6 +247,7 @@ def gui(settings, log_file: Path):
                     result.update(data)
                     total = sum(len(r["shorts"]) for r in data["recordings"])
                     bar["value"] = 1000
+                    eta_lbl.config(text=f"100 %   готово за {fmt_time(time.time() - t_start[0], 0)}")
                     stage_lbl.config(text=f"Готово! Шортсів: {total}.\nПоверніться в DaVinci і натисніть "
                                           "Workspace → Scripts → Shorts Autocut ще раз — таймлайни зберуться.")
                     finish()
