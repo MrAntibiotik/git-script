@@ -109,7 +109,9 @@
       "game_zoom": 1.0,
       "game_offset_x": 0.0,
       "game_offset_y": 0.0,
-      "webcam_focus_y": 0.5
+      "webcam_focus_y": 0.5,
+      "webcam_fit": "cover",
+      "game_below_webcam": false
     },
     "counters": {
       "enabled": false,

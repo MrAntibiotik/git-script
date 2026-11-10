@@ -365,7 +365,7 @@ librosa і SciPy. Наприкінці `check_setup` один раз заван�
 - `voice.scream_min_hz` — від якого тону сплеск вважається криком; `voice.laugh` — параметри сміху;
 - `scoring` — бали й бонуси моментів (див. вище);
 - `selection` — відбір: `max_duration_s` (60), запаси `pre_s`/`post_s`, `merge_gap_s`, `min_score`, `min_battle_score`, підгонка під паузи `speech_snap`/`snap_max_s`, `max_shorts` (0 — без обмеження);
-- `layout` — макет шортсу: `preset` (`split` / `overlay`), висота вебкамери, вікно вебкамери для overlay, `game_zoom`, `game_offset_x/y`, `counters` (позиція V3), `subtitles_y`.
+- `layout` — макет шортсу: `preset` (`overlay` — гра на весь кадр, вебкамера поверх зверху; `split` — вебкамера смугою, гра під нею), `webcam_fit` (`contain` — камера ціла без обрізання, `cover` — заповнити рамку з обрізанням), `game_below_webcam` (зсунути гру так, щоб приціл був під камерою), `webcam_height` (для `contain` — найбільша висота камери, 0 — без обмеження), висота вебкамери, вікно вебкамери для overlay, `game_zoom`, `game_offset_x/y`, `counters` (позиція V3), `subtitles_y`.
 
 **`config\settings.json`** — ще:
 - `render` — кодек (NVENC; якщо не працює — автоматично процесор), якість `cq`;

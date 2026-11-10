@@ -102,9 +102,41 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
     warnings: list[str] = []
     layers: list[Layer] = []
 
+    # ---------------- вебкамера: спершу рахуємо, де вона буде (від цього залежить гра)
+    focus = float(p.get("webcam_focus_y", 0.5))
+    fit = p.get("webcam_fit", "cover")          # cover — заповнити рамку (з обрізанням), contain — уся камера
+    cam_full: Rect | None = None
+    cam_source, cam_sw, cam_sh = "recording", rec_w, rec_h
+    if webcam_file is not None:
+        cam_sw, cam_sh = int(webcam_file["width"]), int(webcam_file["height"])
+        cam_full, cam_source = Rect(0, 0, cam_sw, cam_sh), "webcam_file"
+    elif zones.get("webcam"):
+        cam_full = Rect(*zone_px(zones["webcam"], rec_w, rec_h))
+    if preset == "split":
+        box = Rect(0, 0, W, float(p["webcam_height"]))
+    else:
+        box = Rect(float(p["webcam_x"]), float(p["webcam_y"]), float(p["webcam_width"]), float(p["webcam_height"]))
+    cam_dst = cam_src = None
+    if cam_full is not None:
+        if fit == "contain":
+            # уся камера без обрізання: ширина рамки, висота — за пропорціями камери;
+            # webcam_height > 0 — найбільша дозволена висота (тоді камера вужча й по центру)
+            a = cam_full.w / cam_full.h
+            w, h = box.w, box.w / a
+            if box.h > 0 and h > box.h:
+                h, w = box.h, box.h * a
+            cam_dst = Rect(box.x + (box.w - w) / 2, box.y, w, h)
+            cam_src = cam_full
+            if h > H * 0.5:
+                warnings.append(f"Вебкамера на всю ширину займає {h:.0f} px із {H} ({h / H:.0%} висоти). "
+                                "Обмежити можна параметром webcam_height у профілі.")
+        else:
+            cam_dst = box
+            cam_src = _cover(cam_full, box.w / box.h, focus)
+
     # ---------------- область гри
     if preset == "split":
-        wh = int(p["webcam_height"])
+        wh = int(round(cam_dst.y1)) if cam_dst is not None else int(p["webcam_height"])
         game_dst = Rect(0, wh, W, H - wh)
     else:
         game_dst = Rect(0, 0, W, H)
@@ -115,6 +147,12 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
     cx = rec_w / 2 + float(p.get("game_offset_x", 0.0)) * rec_w
     cy = rec_h / 2 + float(p.get("game_offset_y", 0.0)) * rec_h
     game_src = _clamp_rect(Rect(cx - gw / 2, cy - gh / 2, gw, gh), rec_w, rec_h)
+    if preset == "overlay" and p.get("game_below_webcam") and cam_dst is not None:
+        # центр гри (приціл) — посередині видимої частини під вебкамерою:
+        # сцена зсувається вниз на половину висоти камери, низ кадру гри обрізається
+        shift = cam_dst.y1 / 2
+        game_dst = Rect(0, shift, W, H - shift)
+        game_src = Rect(game_src.x, game_src.y, game_src.w, game_dst.h / s)
 
     # місце вебкамери в кадрі гри не повинно потрапити у V1
     has_cam_in_frame = webcam_file is None and zones.get("webcam")
@@ -140,22 +178,11 @@ def compute_layout(profile: dict, rec_w: int, rec_h: int, webcam_file: dict | No
                 warnings.append("Центр гри трохи зсунуто, щоб вебкамера з кадру не потрапила у V1.")
     layers.append(Layer("game", 1, "recording", game_src, game_dst, rec_w, rec_h))
 
-    # ---------------- вебкамера
-    if preset == "split":
-        cam_dst = Rect(0, 0, W, int(p["webcam_height"]))
-    else:
-        cam_dst = Rect(float(p["webcam_x"]), float(p["webcam_y"]), float(p["webcam_width"]), float(p["webcam_height"]))
-    focus = float(p.get("webcam_focus_y", 0.5))
-    if webcam_file is not None:
-        ww, whh = int(webcam_file["width"]), int(webcam_file["height"])
-        cam_src = _cover(Rect(0, 0, ww, whh), cam_dst.w / cam_dst.h, focus)
-        layers.append(Layer("webcam", 2, "webcam_file", cam_src, cam_dst, ww, whh))
-    elif zones.get("webcam"):
-        cz = Rect(*zone_px(zones["webcam"], rec_w, rec_h))
-        cam_src = _cover(cz, cam_dst.w / cam_dst.h, focus)
-        layers.append(Layer("webcam", 2, "recording", cam_src, cam_dst, rec_w, rec_h))
+    # ---------------- шар вебкамери
+    if cam_dst is not None:
+        layers.append(Layer("webcam", 2, cam_source, cam_src, cam_dst, cam_sw, cam_sh))
         k = cam_dst.w / cam_src.w
-        if k > 3.5:
+        if cam_source == "recording" and k > 3.5:
             warnings.append(f"Вебкамера збільшується в {k:.1f} раза — може бути нечіткою. "
                             "Розгляньте окремий файл вебкамери (OBS Source Record).")
     else:

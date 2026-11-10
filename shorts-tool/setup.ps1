@@ -121,6 +121,8 @@ New-Item -ItemType Directory -Force -Path $Target | Out-Null
 # код — замінюємо; config і samples — лише додаємо нові файли (ваші рамки, пороги й зразки не чіпаємо)
 & robocopy $src $Target /E /XD config samples /XF SETUP.bat /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати файли (robocopy $LASTEXITCODE)" }
+# профілі ігор: нова версія макета/порогів + ваші рамки і категорії звуків
+& $py (Join-Path $src "tools\merge_profiles.py") (Join-Path $src "config\profiles") (Join-Path $Target "config\profiles")
 foreach ($d in @("config", "samples")) {
     & robocopy (Join-Path $src $d) (Join-Path $Target $d) /E /XC /XN /XO /NFL /NDL /NJH /NJS /NP | Out-Null
     if ($LASTEXITCODE -ge 8) { Fail "Не вдалося скопіювати $d (robocopy $LASTEXITCODE)" }
