@@ -45,10 +45,10 @@
       "disable_stitch": false
     }
   },
-  "graph_api_version": "v23.0",
+  "graph_api_version": "v25.0",
 
   "retry": { "attempts": 3, "pause_seconds": 120 },
-  "reports": { "daily_time": "22:30", "stats_after_hours": 24 },
+  "reports": { "daily_time": "22:30", "stats_after_hours": 24, "health_check_time": "09:00" },
 
   "dry_run": false,
   "lock_port": 47613

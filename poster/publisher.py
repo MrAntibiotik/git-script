@@ -78,7 +78,13 @@ class Publisher:
                 new_mp4, new_json = item["mp4"], item["json"]
             else:
                 day = local_dt(app.cfg, now).strftime("%Y-%m-%d")
-                new_mp4, new_json = move_pair(item["mp4"], item["json"], posted_root / day)
+                try:
+                    new_mp4, new_json = move_pair(item["mp4"], item["json"], posted_root / day)
+                except OSError as e:  # файл відкритий у плеєрі тощо — публікація все одно вдалася
+                    log.error("#%s: не вдалося перенести файли в posted/: %s", item_id, e)
+                    app.bot.send(f"⚠️ #{item_id} опубліковано, але файли не вдалося перенести в posted/ "
+                                 f"({e}). Перенесіть вручну.")
+                    new_mp4, new_json = item["mp4"], item["json"]
             media.drop_previews(item["mp4"], app.cfg)
             db.update_item(item_id, mp4=new_mp4, json=new_json, status="posted",
                            posted_at=item["posted_at"] or now)

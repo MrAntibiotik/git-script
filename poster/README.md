@@ -48,14 +48,10 @@ ready/WoT/clip.mp4 + clip.json (status: ready_to_post)
 2. **ffmpeg**: завантажте збірку (наприклад, «release essentials» з gyan.dev), розпакуйте в `C:\ffmpeg`
    і або додайте `C:\ffmpeg\bin` у PATH, або вкажіть у `config.json`:
    `"ffmpeg": "C:/ffmpeg/bin/ffmpeg.exe", "ffprobe": "C:/ffmpeg/bin/ffprobe.exe"`.
-3. Скопіюйте папку `poster` на ПК (наприклад, `D:\Shorts\poster`) і в ній виконайте в PowerShell:
-
-```powershell
-python -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-copy config.example.json config.json
-copy .env.example .env
-```
+3. Скопіюйте папку `poster` на ПК (наприклад, `D:\Shorts\poster`) і запустіть **`setup.bat`** —
+   він створить `.venv`, встановить залежності та скопіює `config.json` і `.env` з прикладів.
+   (Вручну те саме: `python -m venv .venv`, `.venv\Scripts\pip install -r requirements.txt`,
+   `copy config.example.json config.json`, `copy .env.example .env`.)
 
 4. Відредагуйте `config.json` (шляхи до папок) та `.env` (ключі — див. розділ 4).
 
@@ -85,6 +81,8 @@ copy .env.example .env
 | `retry.attempts`, `retry.pause_seconds` | Кількість спроб і пауза між ними (3 × 120 с) |
 | `reports.daily_time` | Час щоденного підсумку (22:30) |
 | `reports.stats_after_hours` | Через скільки годин збирати перегляди (24) |
+| `reports.health_check_time` | Час щоденної перевірки токенів усіх платформ (09:00, до першого слоту) |
+| `graph_api_version` | Версія Graph API Meta (`v25.0`; версії живуть ~2 роки — оновлюйте за потреби) |
 | `dry_run` | `true` — увесь процес без реальних публікацій (для перевірки бота) |
 
 ### Формат json від `generate_meta.py`
@@ -209,7 +207,8 @@ YouTube автоматично робить **приватними**. Щоб п�
 3. **Перезапуск:** коли шортс чекає підтвердження, перезавантажте ПК — після входу бот напише
    «🟢 poster запущено», а слот і кнопки продовжать працювати.
 
-Тести логіки без мережі: `.venv\Scripts\python -m unittest discover -s tests -v`
+Тести без мережі (логіка черги, бот, модулі платформ на підставних відповідях API):
+`.venv\Scripts\python -m unittest discover -v`
 
 ---
 
@@ -256,7 +255,10 @@ powershell -ExecutionPolicy Bypass -File install_task.ps1
 
 Службові повідомлення:
 * ⚠️ платформа не спрацювала після 3 спроб (з причиною) — інші платформи публікуються незалежно;
-* 🔑 «Потрібна повторна авторизація: …» — із командою, яку треба виконати на ПК;
+* 🔑 «Потрібна повторна авторизація: …» — із командою, яку треба виконати на ПК.
+  Токени перевіряються **щодня о 09:00 і при запуску**, тож про проблему ви дізнаєтесь до слоту,
+  а не під час публікації; за 14 днів до кінця дії refresh-токена TikTok прийде попередження.
+  Поточний стан доступів — у `/status`;
 * 🗑 шортс пропущено 3 рази → `skipped/`;
 * 📊 щоденний підсумок о 22:30; 👁 перегляди через 24 год після публікації.
 
@@ -266,6 +268,7 @@ powershell -ExecutionPolicy Bypass -File install_task.ps1
 
 | Файл | Призначення |
 |---|---|
+| `setup.bat` | встановлення в один клік |
 | `poster.py` | точка входу: служба, `check`, `auth`, `queue`, `test-slot` |
 | `bot.py` | Telegram-бот: сповіщення, кнопки, команди |
 | `scheduler.py` | черга, слоти, пропуски, звіти за розкладом |

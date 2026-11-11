@@ -35,7 +35,7 @@ DEFAULTS: dict = {
     "ffprobe": "ffprobe",
     "dry_run": False,
     "lock_port": 47613,
-    "graph_api_version": "v23.0",
+    "graph_api_version": "v25.0",
     "paths": {
         "ready": "ready",
         "posted": "posted",
@@ -46,7 +46,7 @@ DEFAULTS: dict = {
     },
     "telegram": {"bot_token": "", "chat_id": ""},
     "retry": {"attempts": 3, "pause_seconds": 120},
-    "reports": {"daily_time": "22:30", "stats_after_hours": 24},
+    "reports": {"daily_time": "22:30", "stats_after_hours": 24, "health_check_time": "09:00"},
     "platforms": {
         "youtube": {
             "enabled": True,
@@ -151,8 +151,9 @@ def load_config(path: str | os.PathLike | None = None) -> dict:
     cfg["slots"] = sorted({_hm(s) for s in slots})
     try:
         cfg["reports"]["daily_time"] = _hm(cfg["reports"]["daily_time"])
+        cfg["reports"]["health_check_time"] = _hm(cfg["reports"]["health_check_time"])
     except ValueError as e:
-        raise ConfigError("reports.daily_time: очікується час «HH:MM»") from e
+        raise ConfigError("reports.daily_time / health_check_time: очікується час «HH:MM»") from e
     cfg["tz"] = ZoneInfo(cfg["timezone"])
     return cfg
 

@@ -80,6 +80,10 @@ class App:
         tt = self.cfg["platforms"]["tiktok"]
         if tt.get("enabled"):
             lines.append("TikTok: " + ("публічно" if tt.get("public") else "приватно (SELF_ONLY)"))
+        if self.db.get("health_ts"):
+            lines.append(f"\n🔐 <b>Доступи</b> (перевірено {fmt_slot(self.cfg, int(self.db.get('health_ts')), now)}):")
+            for p in self.platforms:
+                lines.append(f"{NAMES[p]}: {esc(self.db.get(f'health_{p}') or '—')}")
         if self.cfg.get("dry_run"):
             lines.append("🧪 dry_run увімкнено")
         return "\n".join(lines)
@@ -174,6 +178,12 @@ def main(argv=None) -> int:
     t = sub.add_parser("test-slot")
     t.add_argument("minutes", type=int, nargs="?", default=10)
     args = ap.parse_args(argv)
+    for stream in (sys.stdout, sys.stderr):  # українські тексти в консолі Windows
+        if stream is not None and hasattr(stream, "reconfigure"):
+            try:
+                stream.reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
 
     try:
         cfg = load_config(args.config)

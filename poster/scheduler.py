@@ -21,6 +21,8 @@ class Scheduler:
         self.db = app.db
         self._last_scan = 0
         self._stats_thread: threading.Thread | None = None
+        self._health_thread: threading.Thread | None = None
+        self._health_started = False
 
     # ------------------------------------------------------------------
     def tick(self, now: int | None = None) -> None:
@@ -34,6 +36,7 @@ class Scheduler:
         self.process_notifications(now)
         self.maybe_daily_report(now)
         self.maybe_stats(now)
+        self.maybe_health_check(now)
 
     # ---------- черга ----------
     def scan(self, now: int | None = None) -> list[int]:
@@ -146,7 +149,11 @@ class Scheduler:
         title = self._title(item)
         self.db.event(item["id"], "skipped", {"title": title, "skips": skips})
         if skips >= int(self.cfg["max_skips"]):
-            mp4, js = move_pair(item["mp4"], item["json"], Path(self.cfg["paths"]["skipped"]))
+            try:
+                mp4, js = move_pair(item["mp4"], item["json"], Path(self.cfg["paths"]["skipped"]))
+            except OSError as e:
+                log.error("#%s: не вдалося перенести в skipped/: %s", item["id"], e)
+                mp4, js = item["mp4"], item["json"]
             media.drop_previews(item["mp4"], self.cfg)
             try:
                 data = read_json(js)
@@ -231,6 +238,51 @@ class Scheduler:
         else:
             self._stats_thread = threading.Thread(target=work, daemon=True, name="stats")
             self._stats_thread.start()
+
+    # ---------- перевірка токенів ----------
+    def maybe_health_check(self, now: int) -> None:
+        """Раз на день (і при запуску) перевіряє доступ до платформ, щоб про протерміновані
+        токени дізнатися до слоту, а не під час публікації."""
+        if self.cfg.get("dry_run") or (self._health_thread and self._health_thread.is_alive()):
+            return
+        dt = local_dt(self.cfg, now)
+        day = dt.strftime("%Y-%m-%d")
+        if self._health_started:
+            if dt.strftime("%H:%M") < self.cfg["reports"]["health_check_time"] or self.db.get("health_day") == day:
+                return
+            self.db.set("health_day", day)
+        self._health_started = True
+
+        if getattr(self.app.publisher, "sync", False):
+            self.health_check()
+        else:
+            self._health_thread = threading.Thread(target=self.health_check, daemon=True, name="health")
+            self._health_thread.start()
+
+    def health_check(self) -> dict[str, str]:
+        from platforms import TokenExpired
+
+        out = {}
+        for key, plat in self.app.platforms.items():
+            try:
+                info = plat.check()
+                out[key] = f"✅ {info}"
+                warn = plat.token_warning()
+                if warn:
+                    out[key] = f"⚠️ {warn}"
+                    if self.db.get(f"warn_{key}") != local_dt(self.cfg, now_ts()).strftime("%Y-%m-%d"):
+                        self.db.set(f"warn_{key}", local_dt(self.cfg, now_ts()).strftime("%Y-%m-%d"))
+                        self.app.bot.send(warn)
+            except TokenExpired as e:
+                out[key] = f"🔑 потрібна авторизація: {e}"
+                self.app.bot.notify_reauth(key, str(e))
+            except Exception as e:  # noqa: BLE001 — мережа тощо: не тривожимо, лише журнал
+                out[key] = f"❓ не вдалося перевірити: {str(e)[:150]}"
+                log.warning("Перевірка %s: %s", key, e)
+            self.db.set(f"health_{key}", out[key])
+        self.db.set("health_ts", now_ts())
+        log.info("Перевірка доступів: %s", out)
+        return out
 
     def _title(self, item: dict) -> str:
         try:

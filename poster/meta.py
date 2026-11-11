@@ -113,7 +113,7 @@ def load_meta(json_path: str | Path, title_override: str | None = None) -> PostM
 
     tt_text = _with_hashtags(tt_text or title, tt_tags or hashtags)
     ig_text = _with_hashtags(ig_text or title, ig_tags or hashtags)
-    fb_text = _with_hashtags(fb_text, fb_tags) if fb_text else ig_text
+    fb_text = _with_hashtags(fb_text, fb_tags or ig_tags or hashtags) if fb_text else ig_text
 
     return PostMeta(
         yt_title=(title_override or title).strip(),

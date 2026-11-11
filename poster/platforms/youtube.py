@@ -100,6 +100,7 @@ class YouTube(Platform):
                         "defaultLanguage": lang, "defaultAudioLanguage": lang},
             "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False, "embeddable": True},
         }
+        media = None
         try:
             yt = self._api()
             media = MediaFileUpload(video_path, mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True)
@@ -112,6 +113,10 @@ class YouTube(Platform):
                     log.debug("YouTube upload %d%%", int(status.progress() * 100))
         except HttpError as e:
             raise self._http_error(e) from e
+        finally:  # інакше на Windows файл лишається заблокованим і не переноситься в posted/
+            fd = getattr(media, "_fd", None)
+            if fd:
+                fd.close()
         vid = resp["id"]
         out = {"id": vid, "url": f"https://youtube.com/shorts/{vid}"}
         real = (resp.get("status") or {}).get("privacyStatus")

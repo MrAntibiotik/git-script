@@ -89,6 +89,16 @@ class TikTok(Platform):
             raise PublishError(msg)
         return j.get("data") or {}
 
+    def token_warning(self) -> str | None:
+        if not self.token_file.exists():
+            return None
+        tok = json.loads(self.token_file.read_text(encoding="utf-8"))
+        days = (tok.get("refresh_expires_at", 0) - time.time()) / 86400
+        if days < 14:
+            return (f"⏳ Refresh-токен TikTok спливає через {max(0, int(days))} дн. "
+                    f"Оновіть заздалегідь: {self.reauth_hint}")
+        return None
+
     # ---------- авторизація (Login Kit, PKCE) ----------
     def authorize(self) -> None:
         if not self.secrets["TIKTOK_CLIENT_KEY"] or not self.secrets["TIKTOK_CLIENT_SECRET"]:

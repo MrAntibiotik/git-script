@@ -33,6 +33,10 @@ class Platform:
         """Перевірка доступу; повертає короткий опис акаунта або кидає виняток."""
         raise NotImplementedError
 
+    def token_warning(self) -> str | None:
+        """Попередження, якщо токен скоро протермінується (None — усе гаразд)."""
+        return None
+
     @property
     def reauth_hint(self) -> str:
         return f"python poster.py auth {self.key}"

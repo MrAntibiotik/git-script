@@ -83,6 +83,8 @@ class FlowTest(unittest.TestCase):
 
     def tearDown(self):
         config.FAKE_NOW = None
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
 
     def ts(self, d, hm):
         h, m = map(int, hm.split(":"))
@@ -250,6 +252,40 @@ class FlowTest(unittest.TestCase):
         msgs = [s[1] for s in self.app.bot.tg.sent if s[0] == "text"]
         self.assertTrue(any("Потрібна повторна авторизація: TikTok" in m for m in msgs))
         self.assertTrue(any("Instagram: не вдалося" in m and "мережа впала" in m for m in msgs))
+
+    def test_health_check(self):
+        from platforms import TokenExpired
+
+        class Good:
+            def check(self):
+                return "@ok"
+
+            def token_warning(self):
+                return "⏳ Refresh-токен TikTok спливає через 3 дн."
+
+        class Bad:
+            reauth_hint = "python poster.py auth youtube"
+
+            def check(self):
+                raise TokenExpired("invalid_grant")
+
+            def token_warning(self):
+                return None
+
+        self.cfg["dry_run"] = False
+        self.app.platforms = {"youtube": Bad(), "tiktok": Good()}
+        self.app.scheduler.tick(self.ts(11, "02:00"))  # перевірка при запуску
+        msgs = [s[1] for s in self.app.bot.tg.sent if s[0] == "text"]
+        self.assertTrue(any("Потрібна повторна авторизація: YouTube" in m for m in msgs))
+        self.assertTrue(any("спливає через 3 дн" in m for m in msgs))
+        n = len(self.app.bot.tg.sent)
+        self.app.scheduler.tick(self.ts(11, "05:00"))  # до 09:00 повторно не перевіряє
+        self.assertEqual(len(self.app.bot.tg.sent), n)
+        self.app.scheduler.tick(self.ts(11, "09:10"))  # щоденна перевірка: нагадування про авторизацію
+        new = [s[1] for s in self.app.bot.tg.sent[n:]]  # (раз на 6 год), попередження TikTok — раз на день
+        self.assertEqual(len(new), 1)
+        self.assertIn("YouTube", new[0])
+        self.assertIn("🔑", self.app.status_text())
 
     def test_missed_slot_while_pc_off(self):
         self.make_short("a")
