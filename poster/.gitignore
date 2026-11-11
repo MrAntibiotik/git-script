@@ -1,0 +1,15 @@
+# секрети і стан — ніколи не комітити
+config.json
+.env
+client_secret*.json
+tokens/
+data/
+log.txt*
+# медіа
+ready/
+posted/
+skipped/
+# python
+__pycache__/
+*.pyc
+.venv/

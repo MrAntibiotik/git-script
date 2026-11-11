@@ -1,0 +1,55 @@
+{
+  "timezone": "Europe/Kyiv",
+  "slots": ["10:00", "13:00", "16:00", "19:00", "21:00"],
+  "notify_before_minutes": 60,
+  "min_notify_lead_minutes": 5,
+  "publish_on_approve": false,
+  "catchup_minutes": 120,
+  "max_skips": 3,
+
+  "paths": {
+    "ready": "D:/Shorts/ready",
+    "posted": "D:/Shorts/posted",
+    "skipped": "D:/Shorts/skipped",
+    "data": "data",
+    "tokens": "tokens",
+    "log": "log.txt"
+  },
+  "ready_status": "ready_to_post",
+  "scan_interval_seconds": 60,
+
+  "regenerate_command": ["python", "D:/Shorts/generate_meta.py", "--force", "{mp4}"],
+  "regenerate_cwd": "D:/Shorts",
+
+  "ffmpeg": "ffmpeg",
+  "ffprobe": "ffprobe",
+
+  "platforms": {
+    "youtube": {
+      "enabled": true,
+      "client_secrets_file": "client_secret.json",
+      "privacy": "public",
+      "category_id": "20",
+      "language": "uk",
+      "add_shorts_hashtag": true,
+      "notify_subscribers": true
+    },
+    "instagram": { "enabled": true, "share_to_feed": true },
+    "facebook":  { "enabled": true },
+    "tiktok": {
+      "enabled": true,
+      "public": false,
+      "redirect_uri": "http://localhost:8765/callback/",
+      "disable_comment": false,
+      "disable_duet": false,
+      "disable_stitch": false
+    }
+  },
+  "graph_api_version": "v23.0",
+
+  "retry": { "attempts": 3, "pause_seconds": 120 },
+  "reports": { "daily_time": "22:30", "stats_after_hours": 24 },
+
+  "dry_run": false,
+  "lock_port": 47613
+}
