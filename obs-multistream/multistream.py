@@ -331,6 +331,8 @@ def script_defaults(settings):
         obs.obs_data_set_default_int(settings, k(i, "bitrate"), DEFAULT_BITRATES[platform])
         obs.obs_data_set_default_int(settings, k(i, "audio_bitrate"), 160)
         obs.obs_data_set_default_bool(settings, k(i, "auto"), True)
+        if platform == "twitch":  # Twitch зазвичай приймає максимум 1080p
+            obs.obs_data_set_default_string(settings, k(i, "height"), "1080")
 
 
 def script_properties():
