@@ -30,7 +30,7 @@ PLATFORMS = {
 }
 
 DEFAULT_PLATFORMS = ["twitch", "youtube", "kick", "custom"]
-DEFAULT_BITRATES = {"twitch": 6000, "youtube": 9000, "kick": 8000,
+DEFAULT_BITRATES = {"twitch": 6000, "youtube": 20000, "kick": 8000,
                     "tiktok": 6000, "facebook": 6000, "custom": 6000}
 
 # (id енкодера в OBS, назва). Показуються лише ті, що є у вашій збірці OBS.
@@ -44,7 +44,10 @@ ENCODERS = [
     ("com.apple.videotoolbox.videoencoder.ave.avc", "Apple VideoToolbox H.264"),
 ]
 
-RESOLUTIONS = [("", "Як у налаштуваннях OBS"), ("1080", "1080p"),
+DEFAULT_TWITCH_LIMIT = 6000  # рекомендований максимум Twitch
+MAX_BITRATE = 51000          # YouTube рекомендує до 51 Мбіт/с для 4K
+
+RESOLUTIONS = [("", "Як у налаштуваннях OBS"), ("1440", "1440p"), ("1080", "1080p"),
                ("936", "936p"), ("720", "720p"), ("480", "480p")]
 
 
@@ -61,6 +64,13 @@ def scaled_size(base_w, base_h, target_h):
 def video_encoder_settings(bitrate):
     """Налаштування, які розуміють усі H.264-енкодери OBS."""
     return {"rate_control": "CBR", "bitrate": int(bitrate), "keyint_sec": 2}
+
+
+def limit_bitrate(platform, bitrate, twitch_limit):
+    """Не даємо перевищити ліміт Twitch, інші платформи - без змін."""
+    if platform == "twitch" and twitch_limit:
+        return min(bitrate, twitch_limit)
+    return bitrate
 
 
 def k(i, name):
@@ -104,6 +114,9 @@ class Target:
     def cfg(self, settings):
         i = self.index
         platform = obs.obs_data_get_string(settings, k(i, "platform")) or "custom"
+        wanted = obs.obs_data_get_int(settings, k(i, "bitrate"))
+        bitrate = limit_bitrate(platform, wanted,
+                                obs.obs_data_get_int(settings, "twitch_limit"))
         return {
             "enabled": obs.obs_data_get_bool(settings, k(i, "enabled")),
             "platform": platform,
@@ -111,7 +124,8 @@ class Target:
             "server": obs.obs_data_get_string(settings, k(i, "server")).strip(),
             "key": obs.obs_data_get_string(settings, k(i, "key")).strip(),
             "encoder": obs.obs_data_get_string(settings, k(i, "encoder")) or "obs_x264",
-            "bitrate": obs.obs_data_get_int(settings, k(i, "bitrate")),
+            "bitrate": bitrate,
+            "limited": bitrate != wanted,
             "audio_bitrate": obs.obs_data_get_int(settings, k(i, "audio_bitrate")) or 160,
             "height": obs.obs_data_get_string(settings, k(i, "height")),
             "auto": obs.obs_data_get_bool(settings, k(i, "auto")),
@@ -135,6 +149,8 @@ class Target:
             return
         self.release()
         name = self.name(cfg)
+        if cfg["limited"]:
+            log(f"{cfg['title']}: бітрейт обмежено до {cfg['bitrate']} кбіт/с (ліміт Twitch)")
 
         service_data = make_data({"server": cfg["server"], "key": cfg["key"]})
         self.service = obs.obs_service_create("rtmp_custom", name + "_service", service_data, None)
@@ -307,6 +323,7 @@ def script_description():
 
 
 def script_defaults(settings):
+    obs.obs_data_set_default_int(settings, "twitch_limit", DEFAULT_TWITCH_LIMIT)
     for i, platform in enumerate(DEFAULT_PLATFORMS):
         obs.obs_data_set_default_string(settings, k(i, "platform"), platform)
         obs.obs_data_set_default_string(settings, k(i, "server"), PLATFORMS[platform][1])
@@ -320,6 +337,8 @@ def script_properties():
     props = obs.obs_properties_create()
     obs.obs_properties_add_button(props, "start_all", "▶ Запустити всі", on_start_all)
     obs.obs_properties_add_button(props, "stop_all", "■ Зупинити всі", on_stop_all)
+    obs.obs_properties_add_int(props, "twitch_limit",
+                               "Ліміт бітрейту Twitch (кбіт/с)", 1000, 20000, 500)
     encoders = available_encoders()
 
     for i in range(TARGET_COUNT):
@@ -340,7 +359,7 @@ def script_properties():
             obs.obs_property_list_add_string(enc, title, eid)
 
         obs.obs_properties_add_int_slider(group, k(i, "bitrate"),
-                                          "Бітрейт відео (кбіт/с)", 500, 20000, 100)
+                                          "Бітрейт відео (кбіт/с)", 500, MAX_BITRATE, 100)
         obs.obs_properties_add_int(group, k(i, "audio_bitrate"),
                                    "Бітрейт аудіо (кбіт/с)", 64, 320, 32)
 
@@ -364,7 +383,7 @@ def script_properties():
 def script_update(settings):
     state["settings"] = settings
     for t in state["targets"]:
-        t.request_bitrate(obs.obs_data_get_int(settings, k(t.index, "bitrate")))
+        t.request_bitrate(t.cfg(settings)["bitrate"])
 
 
 def script_load(settings):
