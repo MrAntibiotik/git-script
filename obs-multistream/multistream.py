@@ -42,7 +42,15 @@ ENCODERS = [
     ("h264_texture_amf", "AMD AMF H.264"),
     ("obs_qsv11_v2", "Intel QuickSync H.264"),
     ("com.apple.videotoolbox.videoencoder.ave.avc", "Apple VideoToolbox H.264"),
+    # AV1 / HEVC: краща якість при тому ж бітрейті, але приймає лише YouTube.
+    ("obs_nvenc_av1_tex", "NVIDIA NVENC AV1 (лише YouTube)"),
+    ("obs_nvenc_hevc_tex", "NVIDIA NVENC HEVC (лише YouTube)"),
+    ("av1_texture_amf", "AMD AMF AV1 (лише YouTube)"),
+    ("obs_qsv11_av1", "Intel QuickSync AV1 (лише YouTube)"),
 ]
+
+# Платформи, що через RTMP приймають лише H.264.
+H264_ONLY_PLATFORMS = {"twitch", "kick", "tiktok", "facebook"}
 
 DEFAULT_TWITCH_LIMIT = 6000  # рекомендований максимум Twitch
 MAX_BITRATE = 51000          # YouTube рекомендує до 51 Мбіт/с для 4K
@@ -85,6 +93,11 @@ def limit_bitrate(platform, bitrate, twitch_limit):
     if platform == "twitch" and twitch_limit:
         return min(bitrate, twitch_limit)
     return bitrate
+
+
+def encoder_allowed(platform, codec):
+    """AV1/HEVC не можна слати на платформи, що приймають лише H.264."""
+    return not (platform in H264_ONLY_PLATFORMS and codec and codec != "h264")
 
 
 def service_type(server):
@@ -208,6 +221,11 @@ class Target:
             self.release()
 
     def create_encoders(self, cfg, name):
+        codec = obs.obs_get_encoder_codec(cfg["encoder"])
+        if not encoder_allowed(cfg["platform"], codec):
+            log(f"{cfg['title']}: приймає лише H.264, а вибрано {codec}. "
+                f"Виберіть H.264-енкодер (наприклад, NVENC H.264)")
+            return False
         venc_data = make_data(video_encoder_settings(cfg["bitrate"]))
         self.venc = obs.obs_video_encoder_create(cfg["encoder"], name + "_video", venc_data, None)
         obs.obs_data_release(venc_data)
