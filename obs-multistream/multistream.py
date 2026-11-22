@@ -47,6 +47,20 @@ ENCODERS = [
 DEFAULT_TWITCH_LIMIT = 6000  # рекомендований максимум Twitch
 MAX_BITRATE = 51000          # YouTube рекомендує до 51 Мбіт/с для 4K
 
+MAIN_ENCODER = "main"  # спільний енкодер з основною кнопкою OBS "Почати трансляцію"
+
+FPS_OPTIONS = [("1", "Як в OBS"), ("2", "Половина (60 -> 30)")]
+
+STOP_REASONS = {
+    -1: "неправильний сервер",
+    -2: "не вдалося підключитися до сервера",
+    -3: "сервер відхилив потік (перевірте ключ)",
+    -4: "помилка виводу",
+    -5: "з'єднання розірвано",
+    -6: "сервер не підтримує цей формат",
+    -8: "помилка енкодера",
+}
+
 RESOLUTIONS = [("", "Як у налаштуваннях OBS"), ("1440", "1440p"), ("1080", "1080p"),
                ("936", "936p"), ("720", "720p"), ("480", "480p")]
 
@@ -71,6 +85,11 @@ def limit_bitrate(platform, bitrate, twitch_limit):
     if platform == "twitch" and twitch_limit:
         return min(bitrate, twitch_limit)
     return bitrate
+
+
+def service_type(server):
+    """WHIP (WebRTC) або звичайний RTMP/RTMPS."""
+    return "whip_custom" if "whip" in server.lower() else "rtmp_custom"
 
 
 def k(i, name):
@@ -106,6 +125,9 @@ class Target:
         self.service = None
         self.venc = None
         self.aenc = None
+        self.shared = False  # енкодери взяті в основного потоку OBS
+        self.signals = []
+        self.title = f"Потік #{index + 1}"
         self.applied_bitrate = None
         self.pending_bitrate = None
         self.pending_since = 0.0
@@ -128,6 +150,7 @@ class Target:
             "limited": bitrate != wanted,
             "audio_bitrate": obs.obs_data_get_int(settings, k(i, "audio_bitrate")) or 160,
             "height": obs.obs_data_get_string(settings, k(i, "height")),
+            "fps_div": int(obs.obs_data_get_string(settings, k(i, "fps_div")) or 1),
             "auto": obs.obs_data_get_bool(settings, k(i, "auto")),
         }
 
@@ -152,17 +175,45 @@ class Target:
         if cfg["limited"]:
             log(f"{cfg['title']}: бітрейт обмежено до {cfg['bitrate']} кбіт/с (ліміт Twitch)")
 
-        service_data = make_data({"server": cfg["server"], "key": cfg["key"]})
-        self.service = obs.obs_service_create("rtmp_custom", name + "_service", service_data, None)
+        self.title = cfg["title"]
+
+        stype = service_type(cfg["server"])
+        key_field = "bearer_token" if stype == "whip_custom" else "key"
+        service_data = make_data({"server": cfg["server"], key_field: cfg["key"]})
+        self.service = obs.obs_service_create(stype, name + "_service", service_data, None)
         obs.obs_data_release(service_data)
 
+        ok = (self.use_main_encoders(cfg) if cfg["encoder"] == MAIN_ENCODER
+              else self.create_encoders(cfg, name))
+        if not ok:
+            self.release()
+            return
+
+        out_type = obs.obs_service_get_preferred_output_type(self.service) or "rtmp_output"
+        self.output = obs.obs_output_create(out_type, name, None, None)
+        obs.obs_output_set_video_encoder(self.output, self.venc)
+        obs.obs_output_set_audio_encoder(self.output, self.aenc, 0)
+        obs.obs_output_set_service(self.output, self.service)
+        obs.obs_output_set_reconnect_settings(self.output, 20, 10)
+        apply_profile_delay(self.output)
+        self.connect_signals()
+
+        if obs.obs_output_start(self.output):
+            self.applied_bitrate = None if self.shared else cfg["bitrate"]
+            rate = "енкодер основного потоку" if self.shared else f"{cfg['bitrate']} кбіт/с"
+            log(f"{cfg['title']}: стрім запускається, {rate}")
+        else:
+            err = obs.obs_output_get_last_error(self.output)
+            log(f"{cfg['title']}: не вдалося запустити ({err or 'невідома помилка'})")
+            self.release()
+
+    def create_encoders(self, cfg, name):
         venc_data = make_data(video_encoder_settings(cfg["bitrate"]))
         self.venc = obs.obs_video_encoder_create(cfg["encoder"], name + "_video", venc_data, None)
         obs.obs_data_release(venc_data)
         if self.venc is None:
             log(f"{cfg['title']}: енкодер {cfg['encoder']} недоступний")
-            self.release()
-            return
+            return False
         obs.obs_encoder_set_video(self.venc, obs.obs_get_video())
         if cfg["height"]:
             ovi = obs.obs_video_info()
@@ -170,32 +221,77 @@ class Target:
             w, h = scaled_size(ovi.output_width, ovi.output_height, int(cfg["height"]))
             if (w, h) != (ovi.output_width, ovi.output_height):
                 obs.obs_encoder_set_scaled_size(self.venc, w, h)
+                optional_call("obs_encoder_set_gpu_scale_type", self.venc,
+                              getattr(obs, "OBS_SCALE_BICUBIC", 2))
+        if cfg["fps_div"] > 1:
+            optional_call("obs_encoder_set_frame_rate_divisor", self.venc, cfg["fps_div"])
 
         aenc_data = make_data({"bitrate": cfg["audio_bitrate"]})
         self.aenc = obs.obs_audio_encoder_create("ffmpeg_aac", name + "_audio", aenc_data, 0, None)
         obs.obs_data_release(aenc_data)
         obs.obs_encoder_set_audio(self.aenc, obs.obs_get_audio())
+        self.shared = False
+        return True
 
-        self.output = obs.obs_output_create("rtmp_output", name, None, None)
-        obs.obs_output_set_video_encoder(self.output, self.venc)
-        obs.obs_output_set_audio_encoder(self.output, self.aenc, 0)
-        obs.obs_output_set_service(self.output, self.service)
-        obs.obs_output_set_reconnect_settings(self.output, 20, 10)
+    def use_main_encoders(self, cfg):
+        """Ділимо енкодер з основним потоком OBS: нуль додаткового навантаження,
+        але бітрейт і роздільність такі самі, як в основному потоці."""
+        main = obs.obs_frontend_get_streaming_output()
+        try:
+            if main is None or not obs.obs_output_active(main):
+                log(f"{cfg['title']}: спершу запустіть основну трансляцію OBS")
+                return False
+            # Енкодерами володіє основний потік - ми їх лише позичаємо
+            # і не відпускаємо в release().
+            self.venc = obs.obs_output_get_video_encoder(main)
+            self.aenc = obs.obs_output_get_audio_encoder(main, 0)
+        finally:
+            if main is not None:
+                obs.obs_output_release(main)
+        self.shared = True
+        return self.venc is not None and self.aenc is not None
 
-        if obs.obs_output_start(self.output):
-            self.applied_bitrate = cfg["bitrate"]
-            log(f"{cfg['title']}: стрім запущено, {cfg['bitrate']} кбіт/с")
-        else:
-            err = obs.obs_output_get_last_error(self.output)
-            log(f"{cfg['title']}: не вдалося запустити ({err or 'невідома помилка'})")
-            self.release()
+    # ---- події виходу: статус і причини обриву ----
+    def connect_signals(self):
+        handler = obs.obs_output_get_signal_handler(self.output)
+
+        def on_start(cd):
+            log(f"{self.title}: в ефірі")
+
+        def on_reconnect(cd):
+            log(f"{self.title}: зв'язок втрачено, перепідключення...")
+
+        def on_reconnected(cd):
+            log(f"{self.title}: перепідключено")
+
+        def on_stop(cd):
+            code = obs.calldata_int(cd, "code")
+            if code:
+                reason = STOP_REASONS.get(code, f"код {code}")
+                log(f"{self.title}: зупинено - {reason}")
+            else:
+                log(f"{self.title}: зупинено")
+
+        self.signals = [("start", on_start), ("reconnect", on_reconnect),
+                        ("reconnect_success", on_reconnected), ("stop", on_stop)]
+        for sig, cb in self.signals:
+            obs.signal_handler_connect(handler, sig, cb)
+
+    def disconnect_signals(self):
+        if self.output is not None and self.signals:
+            handler = obs.obs_output_get_signal_handler(self.output)
+            for sig, cb in self.signals:
+                obs.signal_handler_disconnect(handler, sig, cb)
+        self.signals = []
 
     def stop(self):
         if self.active:
             obs.obs_output_stop(self.output)
-            log(f"Потік #{self.index + 1}: зупинено")
 
     def release(self):
+        self.disconnect_signals()
+        if self.shared:
+            self.venc = self.aenc = None
         for attr, fn in (("output", obs.obs_output_release),
                          ("venc", obs.obs_encoder_release),
                          ("aenc", obs.obs_encoder_release),
@@ -206,10 +302,11 @@ class Target:
                 setattr(self, attr, None)
         self.applied_bitrate = None
         self.pending_bitrate = None
+        self.shared = False
 
     # ---- зміна бітрейту на льоту ----
     def request_bitrate(self, bitrate):
-        if not self.active or bitrate == self.applied_bitrate:
+        if not self.active or self.shared or bitrate == self.applied_bitrate:
             self.pending_bitrate = None
             return
         if bitrate != self.pending_bitrate:
@@ -230,6 +327,28 @@ class Target:
         obs.obs_data_release(data)
         log(f"{title}: бітрейт змінено {self.applied_bitrate} -> {bitrate} кбіт/с")
         self.applied_bitrate = bitrate
+
+
+def optional_call(fn_name, *args):
+    """Функції, яких немає в старих версіях OBS, просто пропускаємо."""
+    fn = getattr(obs, fn_name, None)
+    if fn is not None:
+        fn(*args)
+
+
+def apply_profile_delay(output):
+    """Затримка трансляції з налаштувань OBS (Розширені -> Затримка потоку),
+    щоб усі платформи мали однакову затримку з основним потоком."""
+    try:
+        config = obs.obs_frontend_get_profile_config()
+        if config is None or not obs.config_get_bool(config, "Output", "DelayEnable"):
+            return
+        sec = obs.config_get_int(config, "Output", "DelaySec")
+        preserve = obs.config_get_bool(config, "Output", "DelayPreserve")
+        flags = getattr(obs, "OBS_OUTPUT_DELAY_PRESERVE", 1) if preserve else 0
+        obs.obs_output_set_delay(output, sec, flags)
+    except AttributeError:
+        pass  # стара збірка obspython без config_get_*
 
 
 state = {"settings": None, "targets": [Target(i) for i in range(TARGET_COUNT)]}
@@ -269,7 +388,7 @@ def on_frontend_event(event):
     elif event == obs.OBS_FRONTEND_EVENT_STREAMING_STOPPED:
         for t in each_target(only_auto=True):
             t.stop()
-    elif event == obs.OBS_FRONTEND_EVENT_EXIT:
+    elif event in (obs.OBS_FRONTEND_EVENT_EXIT, obs.OBS_FRONTEND_EVENT_PROFILE_CHANGED):
         stop_all()
 
 
@@ -309,7 +428,7 @@ def make_platform_changed(i):
 
 def available_encoders():
     result = [(eid, title) for eid, title in ENCODERS if obs.obs_get_encoder_codec(eid)]
-    return result or ENCODERS[:1]
+    return (result or ENCODERS[:1]) + [(MAIN_ENCODER, "Як основний потік OBS (без навантаження)")]
 
 
 # ---- стандартні функції OBS-скрипта ----
@@ -331,6 +450,7 @@ def script_defaults(settings):
         obs.obs_data_set_default_int(settings, k(i, "bitrate"), DEFAULT_BITRATES[platform])
         obs.obs_data_set_default_int(settings, k(i, "audio_bitrate"), 160)
         obs.obs_data_set_default_bool(settings, k(i, "auto"), True)
+        obs.obs_data_set_default_string(settings, k(i, "fps_div"), "1")
         if platform == "twitch":  # Twitch зазвичай приймає максимум 1080p
             obs.obs_data_set_default_string(settings, k(i, "height"), "1080")
 
@@ -369,6 +489,11 @@ def script_properties():
                                           obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
         for value, title in RESOLUTIONS:
             obs.obs_property_list_add_string(res, title, value)
+
+        fps = obs.obs_properties_add_list(group, k(i, "fps_div"), "Кадри/с",
+                                          obs.OBS_COMBO_TYPE_LIST, obs.OBS_COMBO_FORMAT_STRING)
+        for value, title in FPS_OPTIONS:
+            obs.obs_property_list_add_string(fps, title, value)
 
         obs.obs_properties_add_bool(group, k(i, "auto"),
                                     "Старт разом з «Почати трансляцію»")
